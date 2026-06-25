@@ -1791,8 +1791,14 @@
             var name = network.name.split(" - ")[1] || ticker;
             var card = $("<div class='coin-card' data-index='" + i + "'>");
             
-            var iconFallback = $("<div class='coin-icon-placeholder'>").text(ticker.substring(0, 2));
-            card.append(iconFallback);
+            var logoSrc = (window.coinLogos && window.coinLogos[ticker.toLowerCase()]) || "";
+            if (logoSrc) {
+                var img = $("<img class='coin-logo' alt=''>").attr("src", logoSrc);
+                card.append(img);
+            } else {
+                var iconFallback = $("<div class='coin-icon-placeholder'>").text(ticker.substring(0, 2));
+                card.append(iconFallback);
+            }
 
             var tickerEl = $("<div class='coin-ticker'>").text(ticker);
             var nameEl = $("<div class='coin-name'>").text(name);

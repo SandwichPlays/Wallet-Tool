@@ -1118,6 +1118,20 @@ body.simple-mode td.privkey [data-show-qr]::after {
   border-color: rgba(255, 255, 255, 0.3);
   color: #ffffff;
 }
+
+.coin-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--bd);
+  margin-bottom: 8px;
+  background: #ffffff;
+  display: block;
+}
+
+.coin-card.selected .coin-logo {
+  border-color: rgba(255, 255, 255, 0.3);
+}
 </style>
 </head>
 <body class="simple-mode">
@@ -1892,6 +1906,7 @@ body.simple-mode td.privkey [data-show-qr]::after {
 <script src="js/wordlist_portuguese.js"></script>
 <script src="js/jsbip39.js"></script>
 <script src="js/entropy.js"></script>
+<script src="js/coin-logos.js"></script>
 <script src="js/index.js"></script>
 </body>
 </html>
