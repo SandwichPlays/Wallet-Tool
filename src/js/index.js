@@ -1853,8 +1853,8 @@
         var defaultLanguage = "english";
         // Try to get from existing phrase
         var language = getLanguageFromPhrase();
-        // Try to get from url if not from phrase
-        if (language.length == 0) {
+        // Try to get from url if not from phrase (only in advanced mode)
+        if (language.length == 0 && !$("body").hasClass("simple-mode")) {
             language = getLanguageFromUrl();
         }
         // Default to English if no other option
@@ -1926,6 +1926,12 @@
             mnemonics[language] = new Mnemonic(language);
         }
         mnemonic = mnemonics[language];
+        
+        // Sync active class on language select buttons
+        if (DOM.languages) {
+            DOM.languages.removeClass("active");
+            DOM.languages.filter("[href='#" + language + "']").addClass("active");
+        }
     }
 
     function convertPhraseToNewLanguage() {
