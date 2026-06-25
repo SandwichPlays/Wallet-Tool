@@ -2860,13 +2860,6 @@
             },
         },
         {
-            name: "DNR - Denarius",
-            onSelect: function() {
-                network = libs.bitcoin.networks.denarius;
-                setHdCoin(116);
-            },
-        },
-        {
             name: "DOGE - Dogecoin",
             onSelect: function() {
                 network = libs.bitcoin.networks.dogecoin;
@@ -3946,7 +3939,7 @@
         }
     ]
 
-    var allowedTickers = ["BTC", "ETH", "BSC", "SOL", "AVAX", "ATOM", "TRX", "FTM", "EOS", "VET", "POL", "ARB", "OP", "ETC", "BCH", "BSV", "BTG", "LTC", "DASH", "DOGE", "XRP", "XLM", "ZEC", "FIRO", "ZEN", "RUNE", "RVN", "DGB", "NANO", "FIO", "IOV", "KMD", "LUNC", "SYS", "EWT", "AUR", "BLK", "BOLI", "BTCZ", "CLO", "CSC", "DIVI", "DMD", "DNR", "EFL", "FJC", "FTC", "GRC", "GRS", "HNS", "LCC", "MAZA", "MONA", "NAV", "NMC", "NRG", "NVC", "OK", "OMNI", "ONION", "PART", "PIVX", "POT", "PPC", "RSK", "R-BTC", "RDD", "SLR", "SMLY", "STRAX", "SUGAR", "VTC", "WGR", "XBC", "XVG", "XWC"];
+    var allowedTickers = ["BTC", "ETH", "BSC", "SOL", "AVAX", "ATOM", "TRX", "FTM", "EOS", "VET", "POL", "ARB", "OP", "ETC", "BCH", "BSV", "BTG", "LTC", "DASH", "DOGE", "XRP", "XLM", "ZEC", "FIRO", "ZEN", "RUNE", "RVN", "DGB", "NANO", "FIO", "IOV", "KMD", "LUNC", "SYS", "EWT", "AUR", "BLK", "BOLI", "BTCZ", "CLO", "CSC", "DIVI", "DMD", "EFL", "FJC", "FTC", "GRC", "GRS", "HNS", "LCC", "MAZA", "MONA", "NAV", "NMC", "NRG", "NVC", "OK", "OMNI", "ONION", "PART", "PIVX", "POT", "PPC", "RSK", "R-BTC", "RDD", "SLR", "SMLY", "STRAX", "SUGAR", "VTC", "WGR", "XBC", "XVG", "XWC"];
     networks = networks.filter(function(n) {
         var ticker = n.name.split(" - ")[0];
         return allowedTickers.indexOf(ticker) > -1;
