@@ -92,6 +92,27 @@ module.exports.stellarUtil = {
     },
 }
 
+/* solana-util */
+
+module.exports.solanaUtil = {
+    getKeypair: function (path, seed) {
+        const { key } = edHd.derivePath(path, seed);
+        const pubKey = edHd.getPublicKey(key).slice(1);
+        return {
+            privateKey: key,
+            publicKey: pubKey
+        };
+    },
+    dummyNetwork: {
+        bip32: {public: 0, private: 0},
+        messagePrefix: '',
+        pubKeyHash: 0,
+        scriptHash: 0,
+        wif: 0,
+    },
+}
+
+
 /* zoobc-util */
 
 let base32 = require('base32.js');

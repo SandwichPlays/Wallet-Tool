@@ -188,11 +188,68 @@
         DOM.languages.on("click", languageChanged);
         DOM.bitcoinCashAddressType.on("change", bitcoinCashAddressTypeChange);
         setQrEvents(DOM.showQrEls);
+        DOM.qrHint.on("click", function(e) {
+            e.stopPropagation();
+            destroyQr();
+        });
+        $(document).on("click", function(e) {
+            if (DOM.qrContainer && !DOM.qrContainer.hasClass("hidden")) {
+                if (!$(e.target).closest(".qr-container").length && !$(e.target).closest("[data-show-qr]").length) {
+                    destroyQr();
+                }
+            }
+        });
+        $(window).on("resize scroll", function() {
+            if (DOM.qrContainer && !DOM.qrContainer.hasClass("hidden")) {
+                destroyQr();
+            }
+        });
         disableForms();
         hidePending();
         hideValidationError();
         populateNetworkSelect();
         populateClientSelect();
+
+        // Simple/Advanced mode toggle logic
+        var modeToggle = $("#mode-toggle");
+        var modal = $("#advanced-mode-modal");
+        var confirmBtn = $("#modal-confirm");
+        var cancelBtn = $("#modal-cancel");
+
+        modeToggle.on("change", function() {
+            if (modeToggle.prop("checked")) {
+                modal.removeClass("hidden");
+            } else {
+                $("body").addClass("simple-mode");
+                $("#simple-mode-label").addClass("active");
+                $("#advanced-mode-label").removeClass("active");
+                // Reset advanced settings that hide/override simple controls
+                if (DOM.useEntropy) {
+                    DOM.useEntropy.prop("checked", false);
+                    setEntropyVisibility();
+                }
+                if (DOM.showBip85) {
+                    DOM.showBip85.prop("checked", false);
+                    toggleBip85();
+                }
+                if (DOM.showSplitMnemonic) {
+                    DOM.showSplitMnemonic.prop("checked", false);
+                    toggleSplitMnemonic();
+                }
+            }
+        });
+
+        confirmBtn.on("click", function() {
+            modal.addClass("hidden");
+            $("body").removeClass("simple-mode");
+            $("#advanced-mode-label").addClass("active");
+            $("#simple-mode-label").removeClass("active");
+        });
+
+        cancelBtn.on("click", function() {
+            modal.addClass("hidden");
+            modeToggle.prop("checked", false);
+        });
     }
 
     // Event handlers
@@ -665,10 +722,11 @@
         $("td.privkey span").toggleClass("invisible");
     }
 
-    function privacyScreenToggled() {
-        // private-data contains elements added to DOM at runtime
-        // so catch all by adding visual privacy class to the root of the DOM
-        if (DOM.privacyScreenToggle.prop("checked")) {
+    function privacyScreenToggled(e) {
+        // Sync all privacy screen toggles (simple and advanced)
+        var checked = $(e.target).prop("checked");
+        DOM.privacyScreenToggle.prop("checked", checked);
+        if (checked) {
             $("body").addClass("visual-privacy");
         }
         else {
@@ -1350,6 +1408,38 @@
                     pubkey = address = keypair.publicKey();
                 }
 
+                // Solana is different
+                if (networks[DOM.network.val()].name == "SOL - Solana") {
+                    var purpose = parseIntNoNaN(DOM.bip44purpose.val(), 44);
+                    var coin = parseIntNoNaN(DOM.bip44coin.val(), 501);
+                    var path = "";
+                    if (bip44TabSelected()) {
+                        path = "m/" + purpose + "'/" + coin + "'/" + index + "'/0'";
+                    } else {
+                        var baseRefPath = getDerivationPath();
+                        var parts = baseRefPath.split('/');
+                        var newParts = [];
+                        for (var p = 0; p < parts.length; p++) {
+                            if (!parts[p]) continue;
+                            var part = parts[p];
+                            if (part !== "m") {
+                                if (!part.endsWith("'")) {
+                                    part += "'";
+                                }
+                            }
+                            newParts.push(part);
+                        }
+                        newParts.push(index + "'");
+                        path = newParts.join('/');
+                    }
+                    var keypair = libs.solanaUtil.getKeypair(path, seed);
+                    indexText = path;
+                    privkey = libs.bs58.encode(libs.buffer.Buffer.concat([libs.buffer.Buffer.from(keypair.privateKey), libs.buffer.Buffer.from(keypair.publicKey)]));
+                    pubkey = libs.bs58.encode(libs.buffer.Buffer.from(keypair.publicKey));
+                    address = pubkey;
+                }
+
+
                 // Nano currency
                 if (networks[DOM.network.val()].name == "NANO - Nano") {
                     var nanoKeypair = libs.nanoUtil.getKeypair(index, seed);
@@ -1684,6 +1774,8 @@
     }
 
     function populateNetworkSelect() {
+        var coinGrid = $("#coin-grid");
+        coinGrid.empty();
         for (var i=0; i<networks.length; i++) {
             var network = networks[i];
             var option = $("<option>");
@@ -1693,7 +1785,58 @@
                 option.prop("selected", true);
             }
             DOM.phraseNetwork.append(option);
+
+            // Create coin card
+            var ticker = network.name.split(" - ")[0];
+            var name = network.name.split(" - ")[1] || ticker;
+            var card = $("<div class='coin-card' data-index='" + i + "'>");
+            
+            var iconFallback = $("<div class='coin-icon-placeholder'>").text(ticker.substring(0, 2));
+            card.append(iconFallback);
+
+            var tickerEl = $("<div class='coin-ticker'>").text(ticker);
+            var nameEl = $("<div class='coin-name'>").text(name);
+            card.append(tickerEl).append(nameEl);
+
+            if (network.name == "BTC - Bitcoin") {
+                card.addClass("selected");
+            }
+            coinGrid.append(card);
         }
+
+        // Add click handler for coin cards
+        coinGrid.on("click", ".coin-card", function() {
+            var idx = $(this).attr("data-index");
+            DOM.phraseNetwork.val(idx).trigger("change");
+        });
+
+        // Sync coin cards with DOM.phraseNetwork change
+        DOM.phraseNetwork.on("change", function() {
+            var idx = $(this).val();
+            coinGrid.find(".coin-card").removeClass("selected");
+            var selected = coinGrid.find(".coin-card[data-index='" + idx + "']");
+            selected.addClass("selected");
+            if (selected.length > 0) {
+                var grid = coinGrid[0];
+                var card = selected[0];
+                if (card.offsetTop < grid.scrollTop || (card.offsetTop + card.offsetHeight) > (grid.scrollTop + grid.offsetHeight)) {
+                    grid.scrollTop = card.offsetTop - (grid.offsetHeight / 2) + (card.offsetHeight / 2);
+                }
+            }
+        });
+
+        // Search logic
+        $("#coin-search").on("input", function() {
+            var query = $(this).val().toLowerCase();
+            coinGrid.find(".coin-card").each(function() {
+                var text = $(this).text().toLowerCase();
+                if (text.indexOf(query) > -1) {
+                    $(this).removeClass("hidden");
+                } else {
+                    $(this).addClass("hidden");
+                }
+            });
+        });
     }
 
     function populateClientSelect() {
@@ -2052,41 +2195,80 @@
         return typeStr;
     }
 
+    var activeQrSource = null;
+
     function setQrEvents(els) {
-        els.on("mouseenter", createQr);
-        els.on("mouseleave", destroyQr);
+        els.off("click", toggleQr);
         els.on("click", toggleQr);
     }
 
-    function createQr(e) {
-        var content = e.target.textContent || e.target.value;
-        if (content) {
-            var qrEl = libs.kjua({
-                text: content,
-                render: "canvas",
-                size: 310,
-                ecLevel: 'H',
-            });
-            DOM.qrImage.append(qrEl);
-            if (!showQr) {
-                DOM.qrHider.addClass("hidden");
-            }
-            else {
-                DOM.qrHider.removeClass("hidden");
-            }
-            DOM.qrContainer.removeClass("hidden");
-        }
-    }
-
     function destroyQr() {
-        DOM.qrImage.text("");
+        DOM.qrImage.empty();
         DOM.qrContainer.addClass("hidden");
+        activeQrSource = null;
     }
 
-    function toggleQr() {
-        showQr = !showQr;
-        DOM.qrHider.toggleClass("hidden");
-        DOM.qrHint.toggleClass("hidden");
+    function toggleQr(e) {
+        e.stopPropagation();
+        var target = $(e.target).closest("[data-show-qr]");
+        if (target.length === 0) return;
+
+        // If simple mode, do not show QR for pubkey and privkey
+        if ($("body").hasClass("simple-mode") && (target.parent().hasClass("pubkey") || target.parent().hasClass("privkey"))) {
+            return;
+        }
+
+        var content = target.text() || target.val();
+        if (!content) return;
+
+        // If it's already open for this exact element, close it
+        if (activeQrSource === target[0] && !DOM.qrContainer.hasClass("hidden")) {
+            destroyQr();
+            return;
+        }
+
+        activeQrSource = target[0];
+
+        // Generate QR code
+        DOM.qrImage.empty();
+        var qrEl = libs.kjua({
+            text: content,
+            render: "canvas",
+            size: 180,
+            ecLevel: 'H',
+            fill: '#111318',
+            back: '#ffffff'
+        });
+        DOM.qrImage.append(qrEl);
+
+        // Position the QR container next to the target element
+        DOM.qrContainer.removeClass("hidden");
+        DOM.qrHider.removeClass("hidden");
+
+        var offset = target.offset();
+        var targetHeight = target.outerHeight();
+        var targetWidth = target.outerWidth();
+        var qrHeight = DOM.qrContainer.outerHeight();
+        var qrWidth = DOM.qrContainer.outerWidth();
+
+        var top = offset.top + targetHeight + 8;
+        var left = offset.left + (targetWidth / 2) - (qrWidth / 2);
+
+        // Prevent going offscreen
+        if (left < 10) left = 10;
+        if (left + qrWidth > $(window).width() - 10) {
+            left = $(window).width() - qrWidth - 10;
+        }
+        if (top + qrHeight > $(window).scrollTop() + $(window).height() - 10) {
+            // Position above the element instead
+            top = offset.top - qrHeight - 8;
+        }
+
+        DOM.qrContainer.css({
+            top: top + "px",
+            left: left + "px",
+            position: "absolute"
+        });
     }
 
     function bip44TabSelected() {
@@ -3659,6 +3841,13 @@
             },
         },
         {
+            name: "SOL - Solana",
+            onSelect: function() {
+                network = libs.solanaUtil.dummyNetwork;
+                setHdCoin(501);
+            },
+        },
+        {
             name: "XMY - Myriadcoin",
             onSelect: function() {
                 network = libs.bitcoin.networks.myriadcoin;
@@ -3744,6 +3933,13 @@
             },
         }
     ]
+
+    var allowedTickers = ["BTC", "ETH", "BSC", "SOL", "AVAX", "ATOM", "TRX", "FTM", "EOS", "VET", "POL", "ARB", "OP", "ETC", "BCH", "BSV", "BTG", "LTC", "DASH", "DOGE", "XRP", "XLM", "ZEC", "FIRO", "ZEN", "RUNE", "RVN", "DGB", "NANO", "FIO", "IOV", "KMD", "LUNC", "SYS", "EWT", "AUR", "BLK", "BOLI", "BTCZ", "CLO", "CSC", "DIVI", "DMD", "DNR", "EFL", "FJC", "FTC", "GRC", "GRS", "HNS", "LCC", "MAZA", "MONA", "NAV", "NMC", "NRG", "NVC", "OK", "OMNI", "ONION", "PART", "PIVX", "POT", "PPC", "RSK", "R-BTC", "RDD", "SLR", "SMLY", "STRAX", "SUGAR", "VTC", "WGR", "XBC", "XVG", "XWC"];
+    networks = networks.filter(function(n) {
+        var ticker = n.name.split(" - ")[0];
+        return allowedTickers.indexOf(ticker) > -1;
+    });
+
 
     var clients = [
         {
